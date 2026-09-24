@@ -157,3 +157,25 @@ model ChatMessage {
   content   String
   createdAt DateTime    @default(now())
 }
+
+model SheetEmbed {
+  id        String   @id @default(cuid())
+  title     String
+  url       String
+  // Google file ID pulled out of the URL — the real dedup key, since the same sheet can arrive with different URL query strings.
+  fileId    String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Single-tenant app — one HR Google connection, stored server-side, refreshed by the backend as needed.
+// One row per connected Google account — HR can link more than one.
+model GoogleAuth {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  accessToken  String
+  refreshToken String
+  expiryDate   BigInt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
