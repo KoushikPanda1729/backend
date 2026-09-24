@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Stage {
+  APPLIED
+  SCREENING
+  INTERVIEW
+  OFFER
+  ONBOARDING
+  HIRED
+  REJECTED
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum EmployeeStatus {
+  ONBOARDING
+  ACTIVE
+  INACTIVE
+  EXITED
+}
+
+enum NoteTarget {
+  CANDIDATE
+  EMPLOYEE
+  GENERAL
+}
+
+model Candidate {
+  id             String      @id @default(cuid())
+  name           String
+  email          String?
+  phone          String?
+  roleAppliedFor String
+  sector         String
+  stage          Stage       @default(APPLIED)
+  source         String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  resumes        Resume[]
+  interviews     Interview[]
+  notes          Note[]
+}
+
+model Resume {
+  id          String   @id @default(cuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  fileName    String
+  filePath    String
+  rawText     String?
+  analysis    Json?
+  score       Int?
+  createdAt   DateTime @default(now())
+}
+
+model Interview {
+  id           String          @id @default(cuid())
+  candidateId  String
+  candidate    Candidate       @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  round        String
+  interviewer  String?
+  scheduledAt  DateTime?
+  status       InterviewStatus @default(SCHEDULED)
+  feedback     String?
+  rating       Int?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model Employee {
+  id           String         @id @default(cuid())
+  employeeCode String         @unique
+  name         String
+  email        String?
+  phone        String?
+  department   String?
+  designation  String?
+  joinDate     DateTime?
+  status       EmployeeStatus @default(ONBOARDING)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  documents    Document[]
+  notes        Note[]
+  attendance   Attendance[]
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+  HALF_DAY
+  HOLIDAY
+  WEEK_OFF
+}
+
+model Attendance {
+  id         String           @id @default(cuid())
+  employeeId String
+  employee   Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime         @db.Date
+  status     AttendanceStatus
+  note       String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([employeeId, date])
+}
+
+model Document {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name       String
+  filePath   String
+  fileType   String?
+  uploadedAt DateTime @default(now())
+}
+
+model Note {
+  id          String     @id @default(cuid())
+  targetType  NoteTarget
+  candidateId String?
+  candidate   Candidate? @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  employeeId  String?
+  employee    Employee?  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  author      String     @default("HR")
+  title       String?
+  content     String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model ChatSession {
+  id        String        @id @default(cuid())
+  title     String        @default("New chat")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String
+  content   String
+  createdAt DateTime    @default(now())
+}
