@@ -4,7 +4,7 @@ import { prisma } from "../lib/prisma.js";
 const router = Router();
 
 router.get("/stats", async (req, res) => {
-  const [candidateCount, employeeCount, activeEmployees, onboarding, interviewsUpcoming, byStage] =
+  const [candidateCount, employeeCount, activeEmployees, onboarding, interviewsUpcoming, byStage, pendingLeaveRequests] =
     await Promise.all([
       prisma.candidate.count(),
       prisma.employee.count(),
@@ -12,6 +12,7 @@ router.get("/stats", async (req, res) => {
       prisma.employee.count({ where: { status: "ONBOARDING" } }),
       prisma.interview.count({ where: { status: "SCHEDULED" } }),
       prisma.candidate.groupBy({ by: ["stage"], _count: true }),
+      prisma.leaveRequest.count({ where: { status: "PENDING" } }),
     ]);
 
   res.json({
@@ -20,6 +21,7 @@ router.get("/stats", async (req, res) => {
     activeEmployees,
     onboarding,
     interviewsUpcoming,
+    pendingLeaveRequests,
     byStage: byStage.map((s) => ({ stage: s.stage, count: s._count })),
   });
 });

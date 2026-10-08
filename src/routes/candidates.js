@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { uploadResume } from "../lib/upload.js";
 import { extractText } from "../lib/extractText.js";
 import { analyzeResume } from "../lib/resumeAnalysis.js";
+import { logAudit, toCsv } from "../lib/audit.js";
 
 const router = Router();
 
@@ -18,6 +19,26 @@ router.get("/", async (req, res) => {
     orderBy: { updatedAt: "desc" },
   });
   res.json(candidates);
+});
+
+router.get("/export.csv", async (req, res) => {
+  const candidates = await prisma.candidate.findMany({
+    include: { resumes: { orderBy: { createdAt: "desc" }, take: 1 } },
+    orderBy: { name: "asc" },
+  });
+  const csv = toCsv(candidates, [
+    { label: "Name", value: (c) => c.name },
+    { label: "Email", value: (c) => c.email },
+    { label: "Phone", value: (c) => c.phone },
+    { label: "Role", value: (c) => c.roleAppliedFor },
+    { label: "Sector", value: (c) => c.sector },
+    { label: "Stage", value: (c) => c.stage },
+    { label: "Source", value: (c) => c.source },
+    { label: "Score", value: (c) => c.resumes?.[0]?.score },
+  ]);
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", "attachment; filename=candidates.csv");
+  res.send(csv);
 });
 
 router.get("/:id", async (req, res) => {
@@ -105,11 +126,14 @@ router.patch("/:id", async (req, res) => {
     where: { id: req.params.id },
     data: { name, email, phone, roleAppliedFor, sector, source, stage },
   });
+  if (stage) await logAudit(req, "candidate.stage", "Candidate", candidate.id, `${candidate.name} -> ${stage}`);
   res.json(candidate);
 });
 
 router.delete("/:id", async (req, res) => {
+  const candidate = await prisma.candidate.findUnique({ where: { id: req.params.id } });
   await prisma.candidate.delete({ where: { id: req.params.id } });
+  await logAudit(req, "candidate.delete", "Candidate", req.params.id, candidate?.name);
   res.status(204).end();
 });
 

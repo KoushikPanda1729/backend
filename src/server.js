@@ -12,6 +12,10 @@ import chatRoutes from "./routes/chat.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import sheetRoutes from "./routes/sheets.js";
 import googleRoutes from "./routes/google.js";
+import leaveRequestRoutes from "./routes/leaveRequests.js";
+import holidayRoutes from "./routes/holidays.js";
+import auditLogRoutes from "./routes/auditlog.js";
+import jobRoutes from "./routes/jobs.js";
 import { requireAuth } from "./middleware/auth.js";
 
 const app = express();
@@ -29,6 +33,10 @@ app.use("/api/chat", requireAuth, chatRoutes);
 app.use("/api/dashboard", requireAuth, dashboardRoutes);
 app.use("/api/sheets", requireAuth, sheetRoutes);
 app.use("/api/google", googleRoutes);
+app.use("/api/leave-requests", leaveRequestRoutes);
+app.use("/api/holidays", requireAuth, holidayRoutes);
+app.use("/api/audit-log", requireAuth, auditLogRoutes);
+app.use("/api/jobs", jobRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);
