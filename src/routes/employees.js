@@ -16,6 +16,36 @@ router.get("/", async (req, res) => {
   res.json(employees);
 });
 
+// Daily attendance sheet — every active employee's status for one date, for marking in bulk.
+router.get("/attendance/day", async (req, res) => {
+  const { date } = req.query;
+  if (!date) return res.status(400).json({ error: "date is required" });
+  const employees = await prisma.employee.findMany({
+    where: { status: { not: "EXITED" } },
+    select: { id: true, name: true, employeeCode: true, department: true, designation: true },
+    orderBy: { name: "asc" },
+  });
+  const records = await prisma.attendance.findMany({ where: { date: new Date(date) } });
+  const statusByEmployee = Object.fromEntries(records.map((r) => [r.employeeId, r.status]));
+  res.json(employees.map((e) => ({ ...e, status: statusByEmployee[e.id] || null })));
+});
+
+router.put("/attendance/day", async (req, res) => {
+  const { date, records } = req.body;
+  if (!date || !Array.isArray(records)) return res.status(400).json({ error: "date and records are required" });
+  await Promise.all(
+    records.map(({ employeeId, status }) =>
+      prisma.attendance.upsert({
+        where: { employeeId_date: { employeeId, date: new Date(date) } },
+        update: { status },
+        create: { employeeId, date: new Date(date), status },
+      })
+    )
+  );
+  await logAudit(req, "attendance.bulk_mark", "Attendance", null, `${records.length} employees on ${date}`);
+  res.json({ ok: true });
+});
+
 router.get("/export.csv", async (req, res) => {
   const employees = await prisma.employee.findMany({ orderBy: { name: "asc" } });
   const csv = toCsv(employees, [
